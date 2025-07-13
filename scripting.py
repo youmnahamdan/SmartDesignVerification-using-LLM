@@ -9,18 +9,9 @@ import os
 import subprocess
 import asyncio
 import re
-import logging
 import json
 from config import proj_config, temp_proj_config
 from time import time
-
-# Set up logging configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger(__name__)
 
 
 def create_script(proj_config, project_directory, script_name):
@@ -44,9 +35,9 @@ def save_code_files(project_directory, filename, code):
     try:
         with open(file_path, "w") as file:
             file.write(code_cleaned)
-        logger.info(f"Code successfully saved to {file_path}")
+        print(f"Code successfully saved to {file_path}")
     except Exception as e:
-        logger.error(f"Error saving file: {e}")
+        print(f"Error saving file: {e}")
 
 async def extract_error_from_file(filename):
     try:
@@ -102,11 +93,11 @@ def quartus_synthesis_tool(design_name, code):
             text=True
         )
         if result.returncode != 0:
-            logger.error(f"Error in opening project!: {result}")
+            print(f"Error in opening project!: {result}")
             return
         
         # Step 2: Compile the Project
-        logger.info("Synthesizing Code...")
+        print("Synthesizing Code...")
         result = subprocess.run(
             f'start /B /wait cmd /c "quartus_sh -t quartus_script_temp_project_compilation.tcl"',
             shell=True,
@@ -115,12 +106,12 @@ def quartus_synthesis_tool(design_name, code):
             text=True
             )
         if result.returncode != 0:
-            logger.error("Error in compilation! Logging...")
+            print("Error in compilation!")
             return
         errors = asyncio.run(process_reports(temp_proj_config.get("REPORT_FILES")))
     
     except Exception as e:
-        logger.error(e)
+        print(str(e))
         
     # Create structured JSON
     structured_errors = {"errors": []}
@@ -129,6 +120,27 @@ def quartus_synthesis_tool(design_name, code):
         structured_errors["errors"].extend([err for err in group if err])
     
     return structured_errors
+
+def compilation_tool(): 
+    project_directory = proj_config.get("PROJECT_DIRECTORY")
+    try:
+        result = subprocess.run(
+            f'start  /B /wait  cmd /c "quartus_sh -t quartus_script_project_compilation.tcl"',
+            shell=True,
+            cwd=project_directory,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+            )
+        if result.stderr:
+            print(f"[Compilation Error]\n{result.stderr}")
+            return False, result.stdout
+
+        return True, result.stdout
+
+    except Exception as e:
+        print(str(e))
+
 
 def complete_compilation_tool():
     project_directory = proj_config.get("PROJECT_DIRECTORY")
@@ -145,31 +157,33 @@ def complete_compilation_tool():
             text=True
         )
         if result.returncode != 0:
-            logger.error(f"Error in opening project!: {result}")
+            print(f"Error in opening project!: {result}")
             return
         
         # Step 2: Compile the Project
-        logger.info("Compiling the Project...")
+        print("Compiling the Project...")
         result = subprocess.run(
             f'start  /B /wait  cmd /c "quartus_sh -t quartus_script_project_compilation.tcl"',
             shell=True,
             cwd=project_directory,
             text=True,
-            stdout=subprocess.PIPE
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
             )
-        if result.returncode != 0:
-            logger.error("Error in compilation! Logging...")
-            return
-        
-        return result.stdout
+        if result.stderr:
+            print(f"[Compilation Error]\n{result.stderr}")
+            return False, result.stdout
+
+        return True, result.stdout
+
     except Exception as e:
-        logger.error(e)
+        print(str(e))
         
 def ui_simulation_tool():
     directory = proj_config.get("PROJECT_DIRECTORY")
 
-    logger.info("Running RTL Simulation...")
-    result = subprocess.run(
+    print("Running RTL Simulation...")
+    result = subprocess.Popen(
         f'quartus_sh -t "{proj_config.get("NATIVELINK_DIRECTORY")}" --rtl_sim {proj_config.get("TOP_LEVEL_ENTITY")} {proj_config.get("TOP_LEVEL_ENTITY")}',
         shell=True,
         cwd=directory,
@@ -177,7 +191,7 @@ def ui_simulation_tool():
         stdout=subprocess.PIPE
     )
     if result.returncode != 0:
-        logger.error(f"Error in simulation! {result.stderr}")
+        print(f"Error in simulation! {result.stderr}")
         return   
     return result.stdout
        
@@ -204,14 +218,16 @@ def questa_testbench_compilation_tool(code):
 
 def create_testbench(internal_signals):
     monitor_string, monitor_signals, internal_signals_declaration, internal_signals_assignments = '', '', '', ''
+    
     for signal, size in internal_signals.items():
-        if len(size) > 0 and int(size) > 1 : 
-            internal_signals_declaration += f"logic [{int(size)-1}:0] {signal};\n\t"     ##unsupported operand type(s) for -: 'str' and 'int'
-        else:
-            internal_signals_declaration += f"logic {signal};\n\t"
-        internal_signals_assignments += f"assign {signal} = dut.{signal};\n\t"
-        monitor_string += f'| {signal}=%h '
-        monitor_signals += f', {signal}'
+        if size.isdigit():
+            if len(size) > 0 and int(size) > 1 : 
+                internal_signals_declaration += f"logic [{int(size)-1}:0] {signal};\n\t"     ##unsupported operand type(s) for -: 'str' and 'int'
+            else:
+                internal_signals_declaration += f"logic {signal};\n\t"
+            internal_signals_assignments += f"assign {signal} = dut.{signal};\n\t"
+            monitor_string += f'| {signal}=%d '
+            monitor_signals += f', {signal}'
     
     tb_body = '''
 `timescale 1ns / 1ps
@@ -249,7 +265,7 @@ module TEST_BENCH_NAME;
 	end
 
 	initial begin
-	 $monitor($time, " clk=%b | rst=%b | HEX_P0=%b | HEX_P1=%b | HEX_P2=%b | HEX_F0=%b| HEX_F1=%b | HEX_F2=%b MONITOR_STRING ", clk, rst, HEX_P0, HEX_P1, HEX_P2, HEX_F0, HEX_F1, HEX_F2 MONITOR_SIGNALS);
+	 $monitor($time, " clk=%b | rst=%b MONITOR_STRING ", clk, rst MONITOR_SIGNALS);
 	end
 
 	initial begin
@@ -260,7 +276,7 @@ module TEST_BENCH_NAME;
 
 	initial begin
 	 // Run simulation for a specific duration
-	 #3000;
+	 #10000;
 	 $stop; // Stop the simulation
 	end
 
@@ -279,7 +295,7 @@ endmodule
 def simulation_tool():
     directory = proj_config.get("PROJECT_DIRECTORY")
 
-    logger.info("Running RTL Simulation...")
+    print("Running RTL Simulation...")
     result = subprocess.run(
         f'quartus_sh -t "{proj_config.get("NATIVELINK_DIRECTORY")}" --rtl_sim {proj_config.get("TOP_LEVEL_ENTITY")} {proj_config.get("TOP_LEVEL_ENTITY")}',
         shell=True,
@@ -288,7 +304,7 @@ def simulation_tool():
         text=True
     )
     if result.returncode != 0:
-        logger.error(f"Error in simulation! {result.stderr}")
+        print(f"Error in simulation! {result.stderr}")
         return
 
 def emulation_tool(cable, mode, device):
@@ -324,10 +340,10 @@ def pin_assignments(file_path):
 if __name__ == '__main__':
     st = time()
     settings = {
-        "PROJECT_DIRECTORY": f'C:/Users/hp/OneDrive/Desktop/SDV/projects/self_testing_alu',
-        "PROJECT_NAME": f'self_testing_alu',
-        "TOP_LEVEL_ENTITY": f'self_testing_alu',
-        "TEST_BENCH_NAME": f'tb_self_testing_alu',
+        "PROJECT_DIRECTORY": f'C:/Users/hp/OneDrive/Desktop/SDV/projects/self_testing_alu_2',
+        "PROJECT_NAME": f'self_testing_alu_2',
+        "TOP_LEVEL_ENTITY": f'self_testing_alu_2',
+        "TEST_BENCH_NAME": f'tb_self_testing_alu_2',
     }    
                 
     for key, value in settings.items():

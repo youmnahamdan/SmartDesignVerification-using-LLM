@@ -1,55 +1,44 @@
 # Built-in imports
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
+#from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+#from matplotlib.figure import Figure
 import sys
-
+    
 
 # Project imports
-from SVAISystem import * 
-from config import eda_output_data_formats, proj_config, fpga_boards, simulation_tools  
+import config 
 from scripting import *
-from db_access import db_access
 from StyleSheet import *
 from WorkerThread import *
+import session 
 
 # Qt imports
-from PyQt5.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot, QEvent
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QLineEdit, QTextEdit, 
     QPushButton, QVBoxLayout, QFormLayout, QHBoxLayout, QProgressBar, 
     QComboBox, QGridLayout, QMessageBox, QFrame, QCheckBox, QAction,
     QDoubleSpinBox, QTableWidgetItem, QTableWidget,  QSpinBox, QHeaderView,
-    QSizePolicy, QPlainTextEdit, QFileDialog
+    QSizePolicy, QPlainTextEdit, QFileDialog , QDialog, QSpacerItem, QStackedLayout,
+    QShortcut, QToolTip
+    
 )
-from PyQt5.QtGui import QFont, QIcon, QColor, QSyntaxHighlighter, QTextCharFormat, QPainter, QLinearGradient, QBrush, QPainterPath
-from PyQt5.QtCore import Qt, QSize, QRegularExpression, QRectF, QTimer
-from concurrent.futures import ThreadPoolExecutor
+from PyQt5.QtGui import QFont, QIcon, QColor, QSyntaxHighlighter, QTextCharFormat, QPainter, QLinearGradient, QBrush, QPainterPath, QTextCursor, QKeySequence, QPixmap, QTextFormat
+from PyQt5.QtCore import Qt, QRectF, QTimer, QRect, QSize, QRegularExpression
 
-
-# Global 
-
-db_obj = db_access()
-current_user = None
-executor = ThreadPoolExecutor(max_workers=6)  # Keep this global or in the class
-feedback_cycles = 3
 
 status_label = None
-progress_bar = None
-def register_ui(status, progress):
-    global status_label, progress_bar
+def register_ui(status):
+    global status_label
     status_label = status
-    progress_bar = progress
-
-def update_status_and_progress(text=None, value=None):
+            
+def update_status_and_progress(text=None, color='black'):
     if status_label is not None and text is not None:
         status_label.setText(f"Status: {text}")
-    if progress_bar is not None:
-        if value is not None:
-            progress_bar.setValue(value)
+        status_label.setStyleSheet(f"font-family: 'Segoe UI' !important; color: {color}; padding-right: 10px;font-weight:500;")
+    
         
 def setWidgetBG(layout, bg_color, left_m = 0, top_m = 0, right_m = 0, bottom_m = 0, border = "", border_radius = border_radius):
-    
     layout_widget = QWidget()
     layout_widget.setLayout(layout)
     layout_widget.setContentsMargins(left_m + 30, top_m, right_m + 30 , bottom_m)
@@ -73,3 +62,23 @@ def create_msg_box(parent, icon, title, text):
     msg_box.setStyleSheet(msg_box_style)
     msg_box.exec_()
     return
+
+
+def display_output(title, message):
+    """Show a PyQt5 message box from non-GUI classes."""
+    app = QApplication.instance()
+    owns_app = False
+
+    if app is None:
+        # Create a new QApplication if none exists
+        app = QApplication(sys.argv)
+        owns_app = True
+
+    msg_box = QMessageBox()
+    msg_box.setWindowTitle(title)
+    msg_box.setText(message)
+    msg_box.setIcon(QMessageBox.Information)
+    msg_box.exec_()
+
+    if owns_app:
+        app.quit()

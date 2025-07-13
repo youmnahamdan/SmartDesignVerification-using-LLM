@@ -1,32 +1,9 @@
 from Imports import *
-import time
 from DataClasses import *
+import session
+import config
+from SVAISystem import * 
 
-# Mock long-running functions with stop check
-'''def ai_main_fake(worker, specs):
-    print("ai_main_fake called with:", specs)
-    for _ in range(4):
-        if worker.is_stopped():
-            return None
-        time.sleep(0.5)
-    return {"signals": ["clk", "reset"]}
-
-def create_testbench(worker, signals):
-    print("create_testbench called with:", signals)
-    for _ in range(4):
-        if worker.is_stopped():
-            return None
-        time.sleep(0.5)
-    return {"tb": "testbench_code"}
-
-def complete_compilation_tool(worker):
-    print("complete_compilation_tool called with: no arguments")
-    for _ in range(4):
-        if worker.is_stopped():
-            return None
-        time.sleep(0.5)
-    return "Compilation Success"
-'''
 
 class EmulationMenu(QWidget):
     def __init__(self, parent=None):
@@ -121,7 +98,7 @@ class Emulation(QWidget):
         cable_label = QLabel("Cable Index:")
         cable_label.setStyleSheet(label_style)
         self.cable_input = QSpinBox()
-        self.cable_input.setStyleSheet(spinbox_style)
+        self.cable_input.setStyleSheet(input_style)
         self.cable_input.setRange(0, 10)  # Assuming max 10 cables
         
         
@@ -135,7 +112,7 @@ class Emulation(QWidget):
         device_label = QLabel("JTAG Device Index:")
         device_label.setStyleSheet(label_style)
         self.device_input = QSpinBox()
-        self.device_input.setStyleSheet(spinbox_style)
+        self.device_input.setStyleSheet(input_style)
         self.device_input.setRange(0, 10)  # Assuming max 10 devices
         
         settings_layout = QHBoxLayout()
@@ -182,7 +159,7 @@ class Emulation(QWidget):
         main_layout.addSpacing(30)
         main_layout.addWidget(self.terminal_label)
         main_layout.addWidget(self.terminal)
-        self.setLayout(setWidgetBG(main_layout, panel_bg_color, 0, 0, 0, 0, panel_border))
+        self.setLayout(setWidgetBG(main_layout, panel_bg_color, 0, 0, 0, 0, outer_panel_border))
     
     def emulate(self):
         # Get emulation inputs
@@ -193,7 +170,12 @@ class Emulation(QWidget):
         if sof_exist:
             emulation_output = emulation_tool(self.cable, self.mode, self.device)
             self.terminal.terminal_output.setPlainText(emulation_output)
-            update_status_and_progress('Emulation Complete', 100)
+            
+            if emulation_output != 'Check for improper connection and make sure the board is on.':
+                update_status_and_progress('Emulation Complete', 'green')
+            else:
+                update_status_and_progress('Emulation Was Unsuccessful', 'red')
+                
         else:
             self.terminal.terminal_output.setPlainText("SOF file does not exist. Make sure to create and compile the project.")  
             update_status_and_progress('Idle')
@@ -208,7 +190,7 @@ class Emulation(QWidget):
         # Set pin assignments
         result = set_pin_assignments(file_path)  
         self.terminal.terminal_output.setPlainText(result)
-        update_status_and_progress('Idle', 90)
+        update_status_and_progress('Idle')
           
     def get_inputs(self):
         # Read values
@@ -238,50 +220,46 @@ class Emulation(QWidget):
             self.sof_status.setStyleSheet("color: red; border: none;")
             return False
         
-    '''def compile_project(self):
-        update_status_and_progress('Compiling Project')
-        compilation_output = complete_compilation_tool()
-        self.terminal.terminal_output.setPlainText(compilation_output)
-        update_status_and_progress('Idle')'''
-        
     def compile_project(self):
         update_status_and_progress('Compiling Project')
-        self.run_task(complete_compilation_tool(), self.on_compile_project_done)
+        self.run_task(compilation_tool, callback=self.on_compile_project_done)
     
     def on_compile_project_done(self, compilation_output):
-        self.terminal.terminal_output.setPlainText(compilation_output)
-        update_status_and_progress('Compiling Completed Successfully')
+        self.terminal.terminal_output.setPlainText(compilation_output[1])
+        if compilation_output[0]:
+            update_status_and_progress('Compilation Was Completed Successfully', color='green')
+        else:
+            update_status_and_progress('Compilation Was Unsuccessful', color='red')
+
         
     def display_waveform(self):
         update_status_and_progress('Displaying Waveform')
-        self.run_task(ui_simulation_tool(), self.on_waveform_done)
+        self.run_task(ui_simulation_tool, callback=self.on_waveform_done)
     
     def on_waveform_done(self, simulation_output):
         self.terminal.terminal_output.setPlainText(simulation_output)
         update_status_and_progress('Idle')
         
     def on_error(self, message):
-        create_msg_box(self, QMessageBox.critical, "Error", f"Task failed: {message}")
+        create_msg_box(self, QMessageBox.Critical, "Error", f"Task failed: {message}")
+        update_status_and_progress('Unsuccessful Operation', color='red')
         
-    def run_task(self, task_fn, callback=None, *args):
-        print("Setting up worker for", task_fn.__name__)
+    def run_task(self, task_fn, *args, callback=None ):
         worker = Worker(task_fn, *args)
         self.current_worker = worker
 
         def on_finished(result):
-            print("Worker finished with result:", result)
             if callback:
                 callback(result)
 
         def on_error(error):
-            print("Worker error:", error)
             self.on_error(error)
 
         worker.signals.finished.connect(on_finished)
         worker.signals.error.connect(on_error)
     
         self.threadpool.start(worker)
-        print("Worker started.")
+
         
 class GenerationMenu(QWidget):
     def __init__(self, parent=None):
@@ -291,10 +269,10 @@ class GenerationMenu(QWidget):
         layout.setSpacing(10)  # Adjust spacing between buttons
         
         # Button Definitions
-        self.gen_new_design = self.create_button(" Generate New Design", "icons/gennew.png")
-        self.view_design = self.create_button(" View Design Code", "icons/viewd.png")
-        self.view_tb = self.create_button("  View Testbench Code", "icons/viewt.png")
-        self.stop_button = self.create_button("  Stop Process", "icons/viewt.png")
+        self.gen_new_design = self.create_button(" Generate New Design", "icons/icons8-triangle-32.png")
+        self.view_design = self.create_button(" View Design Code", "icons/research.png")
+        self.view_tb = self.create_button("  View Testbench Code", "icons/research.png")
+        self.stop_button = self.create_button("  Stop Process", "icons/icons8-stop.png")
         
         # Add buttons to layout
         layout.addWidget(self.gen_new_design)
@@ -332,20 +310,16 @@ class DesignSpecification(QWidget):
         self.module_name_label.setStyleSheet(label_style)
         self.module_desc_label = QLabel("Module Description")
         self.module_desc_label.setStyleSheet(label_style)
-        self.io_label = QLabel("Inputs/Outputs")
-        self.io_label.setStyleSheet(label_style)
-        self.errors_label = QLabel("Errors and Edits")
-        self.errors_label.setStyleSheet(label_style)
+        self.driver_desc_label = QLabel("Driver Specifications")
+        self.driver_desc_label.setStyleSheet(label_style)
 
         # Inputs
         self.module_name_input = QLineEdit()
         self.module_name_input.setStyleSheet(spec_input_style)
         self.module_desc_input = QTextEdit()
         self.module_desc_input.setStyleSheet(spec_input_style)
-        self.io_input = QTextEdit()
-        self.io_input.setStyleSheet(spec_input_style)
-        self.errors_input = QTextEdit()
-        self.errors_input.setStyleSheet(spec_input_style)
+        self.driver_desc_input = QTextEdit()
+        self.driver_desc_input.setStyleSheet(spec_input_style)
 
         # Layouts
         grid_layout = QGridLayout()
@@ -353,10 +327,8 @@ class DesignSpecification(QWidget):
         grid_layout.addWidget(self.module_name_input, 0, 1)
         grid_layout.addWidget(self.module_desc_label, 1, 0)
         grid_layout.addWidget(self.module_desc_input, 1, 1)
-        grid_layout.addWidget(self.io_label, 2, 0)
-        grid_layout.addWidget(self.io_input, 2, 1)
-        grid_layout.addWidget(self.errors_label, 3, 0)
-        grid_layout.addWidget(self.errors_input, 3, 1)
+        grid_layout.addWidget(self.driver_desc_label, 2, 0)
+        grid_layout.addWidget(self.driver_desc_input, 2, 1)
         
         # Main Layout
         main_layout = QVBoxLayout()
@@ -365,13 +337,17 @@ class DesignSpecification(QWidget):
         main_layout.addSpacing(10)
         main_layout.addLayout(grid_layout)
 
-        self.setLayout(setWidgetBG(main_layout, panel_bg_color, 0, 0, 0, 0, panel_border))
+        self.setLayout(setWidgetBG(main_layout, panel_bg_color, 0, 0, 0, 0, outer_panel_border))
 
     def enable_generate_button(self):
         self.gen_menu.gen_new_design.setDisabled(False)
+        self.gen_menu.view_design.setDisabled(False)
+        self.gen_menu.view_tb.setDisabled(False)
     
     def disable_generate_button(self):
         self.gen_menu.gen_new_design.setDisabled(True)
+        self.gen_menu.view_design.setDisabled(True)
+        self.gen_menu.view_tb.setDisabled(True)
         
     def get_filled_inputs(self):
         """
@@ -381,16 +357,19 @@ class DesignSpecification(QWidget):
         inputs = {
             "Module Name": self.module_name_input.text().strip(),
             "Module Description": self.module_desc_input.toPlainText().strip(),
-            "Inputs/Outputs": self.io_input.toPlainText().strip(),
-            "Errors and Edits": self.errors_input.toPlainText().strip()
+            "Driver Specifications": self.driver_desc_input.toPlainText().strip(),
         }
         
-        specs = 'Design Specifications:\n'
-
-        for key, value in inputs.items():
-                specs += f'{key}:\n{value}\n'
-
-        return specs
+        specs = (
+            'Design Specifications:\n'
+            f'Module Name: {inputs["Module Name"]}\n'
+            f'Module Description: {inputs["Module Description"]}\n'
+        )
+        driver_specs = (
+            f'{inputs["Driver Specifications"]}\n'
+        )
+        
+        return specs, driver_specs
 
     def stop_process(self):
         if self.current_worker:
@@ -408,60 +387,42 @@ class DesignSpecification(QWidget):
     def generate_design(self):
         update_status_and_progress("Generating Design")
         self.disable_generate_button()
-        self.specs = self.get_filled_inputs()
+        self.specs , self.driver_specs = self.get_filled_inputs()
+        args = [self.specs, self.driver_specs, config.feedback_cycles, config.universal_big_model, config.universal_small_model]
         
-        self.run_task(ai_main, self.on_ai_main_done, self.specs)
+        self.run_task(ai_main, self.on_ai_main_done, *args)
 
     def on_error(self, message):
         self.enable_generate_button()
         QMessageBox.critical(self, "Error", f"Task failed: {message}")
+        update_status_and_progress('Unsuccessful Operation', color='red')
       
     def on_cancelled(self):
         self.enable_generate_button()
         QMessageBox.information(self, "Cancelled", "The process was stopped.")
+        update_status_and_progress('Operation Was Cancelled')
 
     def on_ai_main_done(self, result):
         if result != -1 :
-            update_status_and_progress("Creating Testbench", 40)
+            update_status_and_progress("Creating Testbench")
             self.run_task(create_testbench, self.on_testbench_done, result)
-            print("tb result:   ", result)
         else:
             self.enable_generate_button()
             QMessageBox.critical(self, "Error", f"Insecure prompt. Please check your inputs.")
 
     def on_testbench_done(self, result):
-        update_status_and_progress("Compiling Project", 55)
+        update_status_and_progress("Compiling Project")
         self.run_task(complete_compilation_tool, self.on_compilation_done)
 
     def on_compilation_done(self, result):
-        update_status_and_progress("Compilation Completed", 65)
-        self.enable_generate_button()
-        QMessageBox.information(self, "Success", "Compilation was Completed Successfully.")
+        if result[0]:
+            update_status_and_progress('Compilation Was Completed Successfully', color='green')
+            self.enable_generate_button()
+            create_msg_box(self, QMessageBox.Information, "Success", "Compilation was Completed Successfully")
+        else:
+            update_status_and_progress('Compilation Was Unsuccessful', color='red')
+            self.enable_generate_button()
         
-
-    ''''def _run_design_pipeline(self, specs):
-        try:
-            signals = ai_main(specs, feedback_cycles = feedback_cycles)
-            if signals == -1:
-                return "fail:Insecure prompt. Please check your inputs."
-            update_status_and_progress("Creating Testbench", 40)
-            create_testbench(signals)
-            update_status_and_progress("Compiling Project", 55)
-            complete_compilation_tool()
-            update_status_and_progress("Compilation Completed", 65)
-            return "success:Process completed. Check your code for relevance."
-        except Exception as e:
-            return f"fail:{str(e)}"
-
-    def _check_future(self, future):
-        if future.done():
-            self.timer.stop()
-            result = future.result()
-            if result.startswith("success:"):
-                QMessageBox.information(self, "Success", result.split(":", 1)[1])
-            else:
-                QMessageBox.critical(self, "Error", result.split(":", 1)[1])'''
-
     def view_design(self):
         file_path = f'{proj_config.get("PROJECT_DIRECTORY")}/{proj_config.get("TOP_LEVEL_ENTITY")}.sv'
         self.open_code_editor(file_path)
@@ -479,249 +440,218 @@ class DesignSpecification(QWidget):
         except Exception as e:
             print(f"Error loading file: {e}")
 
-class ProjectSetup(QWidget):
+class LLMSettings(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-
-        layout = QVBoxLayout()
-
-        # Grid Layout for Inputs
+        self.setWindowTitle('LLM Settings')
+        self.setMinimumWidth(700)
         grid_layout = QGridLayout()
-        grid_layout.setSpacing(10)
 
-        # Directory Selection
-        self.dir_label = QLabel("Project Directory:")
-        self.dir_label.setStyleSheet(label_style)
+        # API Key
+        api_label = QLabel('API Key')
+        api_label.setStyleSheet(label_style)
+        self.api_input = QLineEdit()
+        self.api_input.setStyleSheet(input_style)
 
-        self.dir_input = QLineEdit()
-        self.dir_input.setPlaceholderText("Select project directory")
-        self.dir_input.setStyleSheet(input_style)
-
-        self.browse_button = QPushButton("Browse")
-        self.browse_button.setStyleSheet(button_style)
-        self.browse_button.clicked.connect(self.browse_directory)
-
-        grid_layout.addWidget(self.dir_label, 0, 0)
-        grid_layout.addWidget(self.dir_input, 0, 1)
-        grid_layout.addWidget(self.browse_button, 0, 2)
-
-        # Project Name
-        self.pname_label = QLabel("Project Name:")
-        self.pname_label.setStyleSheet(label_style)
-
-        self.pname_input = QLineEdit()
-        self.pname_input.setPlaceholderText("No illegal characters like -")
-        self.pname_input.setStyleSheet(input_style)
-
-        grid_layout.addWidget(self.pname_label, 1, 0)
-        grid_layout.addWidget(self.pname_input, 1, 1, 1, 2)
-
-        # Top-Level Module Name
-        self.tname_label = QLabel("Top-Level Module Name:")
-        self.tname_label.setStyleSheet(label_style)
-
-        self.tname_input = QLineEdit()
-        self.tname_input.setPlaceholderText("No illegal characters like -")
-        self.tname_input.setStyleSheet(input_style)
-
-        grid_layout.addWidget(self.tname_label, 2, 0)
-        grid_layout.addWidget(self.tname_input, 2, 1, 1, 2)
-        
-        # Testbench Module Name
-        self.tbname_label = QLabel("Testbench Name:")
-        self.tbname_label.setStyleSheet(label_style)
-
-        self.tbname_input = QLineEdit()
-        self.tbname_input.setPlaceholderText("No illegal characters like -")
-        self.tbname_input.setStyleSheet(input_style)
-
-        grid_layout.addWidget(self.tbname_label, 3, 0)
-        grid_layout.addWidget(self.tbname_input, 3, 1, 1, 2)
-
-        # HDL Language Selection
-        self.hdl_label = QLabel("HDL Language:")
-        self.hdl_label.setStyleSheet(label_style)
-
-        self.hdl_combobox = QComboBox()
-        self.hdl_combobox.addItems(["SystemVerilog", "Verilog", "VHDL"])
-        self.hdl_combobox.setStyleSheet(combobox_style)
-
-        grid_layout.addWidget(self.hdl_label, 4, 0)
-        grid_layout.addWidget(self.hdl_combobox, 4, 1, 1, 2)
-        
-        # Simulation Tool Selection
-        self.sim_label = QLabel("Simulation Tool:")
-        self.sim_label.setStyleSheet(label_style)
-
-        self.sim_combobox = QComboBox()
-        self.sim_combobox.addItems(simulation_tools)
-        self.sim_combobox.setStyleSheet(combobox_style)
-
-        grid_layout.addWidget(self.sim_label, 5, 0)
-        grid_layout.addWidget(self.sim_combobox, 5, 1, 1, 2)
-        
-
-        # EDA Data Selection
-        self.eda_format_label = QLabel("EDA Output Data Format:")
-        self.eda_format_label.setStyleSheet(label_style)
-
-        self.eda_format_combobox = QComboBox()
-        self.eda_format_combobox.addItems(eda_output_data_formats) 
-        self.eda_format_combobox.setStyleSheet(combobox_style)
-
-        grid_layout.addWidget(self.eda_format_label, 6, 0)
-        grid_layout.addWidget(self.eda_format_combobox, 6, 1, 1, 2)
-        
-        
-        # Board Selection
-        self.board_label = QLabel("FPGA Board:")
-        self.board_label.setStyleSheet(label_style)
-
-        self.board_combobox = QComboBox()
-        self.board_combobox.addItems(fpga_boards) 
-        self.board_combobox.setStyleSheet(combobox_style)
-
-        grid_layout.addWidget(self.board_label, 7, 0)
-        grid_layout.addWidget(self.board_combobox, 7, 1, 1, 2)
-
-
-        # Small and Big Models
+        # Small model
         self.smname_label = QLabel("LLM Model Name (Small)")
         self.smname_label.setStyleSheet(label_style)
-        self.bmname_label = QLabel("LLM Model Name (Big)")
-        self.bmname_label.setStyleSheet(label_style)
-
         self.smname_input = QLineEdit()
         self.smname_input.setPlaceholderText("Open AI LLM Model Name (This model is used for simple tasks, like processing input specifications.).")
         self.smname_input.setStyleSheet(input_style)
+
+        # Big model
+        self.bmname_label = QLabel("LLM Model Name (Big)")
+        self.bmname_label.setStyleSheet(label_style)
         self.bmname_input = QLineEdit()
         self.bmname_input.setPlaceholderText("Open AI LLM Model Name (This model is used for complex major tasks, like generating chip design.).")
         self.bmname_input.setStyleSheet(input_style)
-        
-        grid_layout.addWidget(self.smname_label, 8, 0)
-        grid_layout.addWidget(self.smname_input, 8, 1, 1, 2)
-        grid_layout.addWidget(self.bmname_label, 9, 0)
-        grid_layout.addWidget(self.bmname_input, 9, 1, 1, 2)
-        
-        # Feedback cycles
-        self.feed_label = QLabel("Feedback cycles:")
-        self.feed_label.setStyleSheet(label_style)
 
-        self.feed_spin = QSpinBox()
-        self.feed_spin.setStyleSheet(spinbox_style)
+        # Add to grid (row, column)
+        grid_layout.addWidget(api_label,      0, 0)
+        grid_layout.addWidget(self.api_input, 0, 1)
 
-        grid_layout.addWidget(self.feed_label, 10, 0)
-        grid_layout.addWidget(self.feed_spin, 10, 1, 1, 2)
+        grid_layout.addWidget(self.smname_label,      1, 0)
+        grid_layout.addWidget(self.smname_input,      1, 1)
+
+        grid_layout.addWidget(self.bmname_label,      2, 0)
+        grid_layout.addWidget(self.bmname_input,      2, 1)
+
+        # Save button spanning two columns
+        save_button = QPushButton('Save Settings')
+        save_button.setStyleSheet(button_style)
+        save_button.clicked.connect(self.save_settings)
+        grid_layout.addWidget(save_button, 3, 0, 1, 2)
+
+        self.setLayout(grid_layout)
         
-        self.save_button = QPushButton("Save project settings")
-        self.save_button.setStyleSheet(button_style)
-        self.save_button.clicked.connect(self.save_settings)
-        self.save_button.setFixedWidth(200)
-        self.save_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        
-        save_layout = QHBoxLayout()
-        save_layout.addWidget(self.save_button)
-
-        layout.addStretch()
-        layout.addStretch()
-        layout.addLayout(grid_layout)
-        layout.addStretch()
-        layout.addLayout(save_layout)
-        layout.addStretch()
-        layout.addStretch()
-        layout.addStretch()
-        
-
-        self.setLayout(setWidgetBG(layout, panel_bg_color, 0, 0, 0, 0, panel_border))
-
-    
-    def browse_directory(self):
-        """Open a directory selection dialog."""
-        directory = QFileDialog.getExistingDirectory(self, "Select Directory")
-        if directory:
-            self.dir_input.setText(directory)
         
     def save_settings(self):
-        update_status_and_progress('Saving Project Settings')
-        # Check for an empty project directory
-        project_dir = self.dir_input.text().strip()
-        if not project_dir:
-            create_msg_box(self, QMessageBox.Warning, "Input Error",  "Project directory cannot be empty.")
-            return
+        api_key = self.api_input.text().strip()
+        if api_key:
+            os.environ['OPENAI_API_KEY'] = api_key
+            print(f"The new API key: {os.getenv('OPENAI_API_KEY')}")
+        big_model = self.bmname_input.text().strip()
+        small_model = self.smname_input.text().strip()
+        
+        if big_model in config.valid_llms:
+            config.universal_big_model = big_model
+            
+        if small_model in config.valid_llms:
+            config.universal_small_model = small_model
+            
+        print(f'Big LLM: {config.universal_big_model}')
+        print(f'Small LLM: {config.universal_small_model}')
+        
+        create_msg_box(self, QMessageBox.Information, "Settings Saved", "LLM settings have been saved successfully.")
 
-        # Define a regex pattern for valid names: 
-        # - Starts with a letter or underscore
-        # - Contains only letters, digits, underscores, and dollar signs
-        valid_name_pattern = r"^[a-zA-Z_][a-zA-Z0-9_$]*$"
+class PromptMenu(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        layout = QHBoxLayout()
+        layout.setSpacing(10)  # Adjust spacing between buttons
+        
+        # Button Definitions
+        self.top_prompt = self.create_button("Top-Module Prompt")
+        self.design_prompt = self.create_button("Chip Design Prompt")
+        self.driver_prompt = self.create_button("Driver Design Prompt")
+        self.validation_prompt = self.create_button("Validation Prompt")
+        self.process_specs_prompt = self.create_button("Process Input Specifications Prompt")
+        
+        # Add buttons to layout
+        
+        layout.addWidget(self.top_prompt)
+        layout.addWidget(self.design_prompt)
+        layout.addWidget(self.driver_prompt)
+        layout.addWidget(self.validation_prompt)
+        layout.addWidget(self.process_specs_prompt)
+        
+        v_layout = QVBoxLayout()
+        v_layout.addSpacing(5)
+        v_layout.addLayout(layout)
+        v_layout.addSpacing(5)
 
-        def is_valid_name(name):
-            return re.fullmatch(valid_name_pattern, name) is not None
+        # Set layout
+        self.setLayout(setWidgetBG(v_layout, prompt_menu_bg , -30, 0, -30, 0, border_radius = 5))
 
-        # Retrieve text from input fields
-        project_name = self.pname_input.text().strip()
-        module_name = self.tname_input.text().strip()
-        testbench_name = self.tbname_input.text().strip()
-        
-        if module_name == testbench_name:
-            QMessageBox.warning(self, "Invalid Input", "Top-Level and Testbench modules have the same names")
-            return
+    def create_button(self, text):
+        button = QPushButton(text)
+        button.setStyleSheet(home_menu_style)
+        return button
 
-        # Validate names
-        if not is_valid_name(project_name):
-            QMessageBox.warning(self, "Invalid Input", "Project name must start with a letter or underscore and contain only letters, digits, underscores, or dollar signs.")
-            return
-        if not is_valid_name(module_name):
-            QMessageBox.warning(self, "Invalid Input", "Module name must start with a letter or underscore and contain only letters, digits, underscores, or dollar signs.")
-            return
-        if not is_valid_name(testbench_name):
-            QMessageBox.warning(self, "Invalid Input", "Testbench name must start with a letter or underscore and contain only letters, digits, underscores, or dollar signs.")
-            return
+class EditPrompts(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Edit System Prompts')
+        self.setMinimumSize(1200, 800)
+        self.setStyleSheet('background-color:white;')
         
+        self.current_prompt_id = 0
+        self.prompt_menu = PromptMenu(self)
+        self.prompt_menu.top_prompt.clicked.connect(self.on_top_click)  
+        self.prompt_menu.design_prompt.clicked.connect(self.on_design_click)
+        self.prompt_menu.driver_prompt.clicked.connect(self.on_driver_click)
+        self.prompt_menu.validation_prompt.clicked.connect(self.on_validation_click)
+        self.prompt_menu.process_specs_prompt.clicked.connect(self.on_process_specs_click)
+        self.prompt_txt_area = QTextEdit()
+        self.prompt_txt_area.setStyleSheet(spec_input_style)
+        self.prompt_txt_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        '''buttons_layout = QHBoxLayout()
+        self.save_prompts_btn = QPushButton('Save Prompts')
+        self.restore_prompts_btn = QPushButton('Restore Default Prompts')
+        self.save_prompts_btn.setStyleSheet(save_button_style)
+        self.restore_prompts_btn.setStyleSheet(restore_button_style)
+        self.save_prompts_btn.clicked.connect(self.save_prompts)
+        self.restore_prompts_btn.clicked.connect(self.restore_prompts)
+        buttons_layout.addWidget(self.save_prompts_btn)
+        buttons_layout.addWidget(self.restore_prompts_btn)'''
+        
+        buttons_layout = QGridLayout()
 
-        # Assign simulation tool, models, and HDL language
-        selected_hdl = self.hdl_combobox.currentText()
-        selected_sim_tool = self.sim_combobox.currentText()
-        selected_eda = self.eda_format_combobox.currentText()
-        selected_board = self.board_combobox.currentText()
-        global feedback_cycles
-        feedback_cycles = self.feed_spin.value() if self.feed_spin.value() != 0 else 3
-        print("feedback_cycles  ", feedback_cycles)
+        # Create buttons
+        self.save_prompts_btn = QPushButton('Save Prompts')
+        self.restore_prompts_btn = QPushButton('Restore Default Prompts')
+
+        self.save_prompts_btn.setFixedWidth(300)
+        self.restore_prompts_btn.setFixedWidth(300)
+
+        # Apply styles
+        self.save_prompts_btn.setStyleSheet(save_button_style)
+        self.restore_prompts_btn.setStyleSheet(restore_button_style)
+
+        # Connect signals
+        self.save_prompts_btn.clicked.connect(self.save_prompts)
+        self.restore_prompts_btn.clicked.connect(self.restore_prompts)
+
+        # Add spacers and buttons to the grid: row 0, columns 0–4
+        buttons_layout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum), 0, 0)
+        buttons_layout.addWidget(self.save_prompts_btn, 0, 1)
+        buttons_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Fixed, QSizePolicy.Minimum), 0, 2)
+        buttons_layout.addWidget(self.restore_prompts_btn, 0, 3)
+        buttons_layout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum), 0, 4)
+
         
-        # Store settings
-        self.settings = {
-            "PROJECT_DIRECTORY": project_dir,
-            "PROJECT_NAME": project_name,
-            "TOP_LEVEL_ENTITY": module_name,
-            "TEST_BENCH_NAME": testbench_name,
-            "HDL_LANGUAGE": selected_hdl,
-            "EDA_SIMULATION_TOOL": selected_sim_tool,
-            "EDA_OUTPUT_DATA_FORMAT": selected_eda,
-            "BOARD": selected_board
-        }    
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.prompt_menu)
+        main_layout.addSpacing(10)
+        main_layout.addWidget(self.prompt_txt_area)
+        main_layout.addSpacing(10)
+        main_layout.addLayout(buttons_layout)
         
-        for key, value in self.settings.items():
-                    proj_config.set(key, value)
-                    
-        new_project = Project(
-            project_name=project_name,
-            project_directory=project_dir,
-            no_api_calls=3,
-            top_module_name=module_name,
-            testbench_name=testbench_name,
-            board=selected_board,
-            eda_output_format=selected_eda,
-            simulation_tool=selected_sim_tool,
-            feedback_cycles=2,
-            hdl=selected_hdl,
-            editors=""
-        )
+        self.setLayout(main_layout)
         
-        db_obj.insert_project(new_project)
-                    
-        QMessageBox.information(self, "Success", "Settings saved successfully!")
-        update_status_and_progress('Idle', 15)
-                
+    def restore_prompts(self):
+        session.db_obj.delete_customized_prompts(session.current_user.user_id)
+        session.current_prompts['top_prompt'] = session.db_obj.get_default_prompt_by_id(101)['prompt']
+        session.current_prompts['design_prompt'] = session.db_obj.get_default_prompt_by_id(103)['prompt']
+        session.current_prompts['driver_prompt'] = session.db_obj.get_default_prompt_by_id(102)['prompt']
+        session.current_prompts['validation_prompt'] = session.db_obj.get_default_prompt_by_id(104)['prompt']
+        session.current_prompts['process_specs_prompt'] = session.db_obj.get_default_prompt_by_id(105)['prompt']
         
+        create_msg_box(self, QMessageBox.Information, 'Default Prompts Restored', 'The default system prompts have been restored.')
+
+
+    def save_prompts(self):
+        edited_prompt = self.prompt_txt_area.toPlainText()
+        print(f'Edited prompt ID: {self.current_prompt_id}\nNew prompt: {edited_prompt}')
+        if self.current_prompt_id == 101:
+            session.current_prompts['top_prompt'] = edited_prompt
+        elif self.current_prompt_id == 102:
+            session.current_prompts['driver_prompt'] = edited_prompt
+        elif self.current_prompt_id == 103:
+            session.current_prompts['design_prompt'] = edited_prompt
+        elif self.current_prompt_id == 104:
+            session.current_prompts['validation_prompt'] = edited_prompt
+        elif self.current_prompt_id == 105:
+            session.current_prompts['process_specs_prompt'] = edited_prompt
+            
+
+        session.db_obj.save_customized_prompts(session.current_prompts, session.current_user.user_id)
+        create_msg_box(self, QMessageBox.Information, 'Prompt Saved', 'Your changes have been saved successfully. The default system prompt has been overridden.')
+
+
+    def on_top_click(self):
+        self.show_prompt(101, 'top_prompt')
+
+    def on_driver_click(self):
+        self.show_prompt(102, 'driver_prompt')
+        
+    def on_design_click(self):
+        self.show_prompt(103, 'design_prompt')
+        
+    def on_validation_click(self):
+        self.show_prompt(104, 'validation_prompt')
+    
+    def on_process_specs_click(self):
+        self.show_prompt(105, 'process_specs_prompt')
+        
+    def show_prompt(self,prompt_id, prompt_name):
+        if session.current_prompts:
+            self.current_prompt_id = prompt_id
+            self.prompt_txt_area.setText(session.current_prompts[prompt_name])
+              
 class GridWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -731,22 +661,23 @@ class GridWidget(QWidget):
         
         # --- First Row: Status Label, Empty Space, Empty Space, Progress Bar (spanning 2 columns) ---
         self.status_label = QLabel("Status: In Progress")
-        self.progress_bar = QProgressBar()
+        #self.progress_bar = QProgressBar()
         
         self.status_label.setStyleSheet(status_style) 
         self.status_label.setFixedSize(400, 30) 
         self.status_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         
-        self.progress_bar.setValue(0)
-        self.progress_bar.setStyleSheet(bar_style_before)
-        self.progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        #self.progress_bar.setValue(0)
+        #self.progress_bar.setStyleSheet(bar_style_before)
+        #self.progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         
-        register_ui(self.status_label, self.progress_bar)
+        register_ui(self.status_label)
         
         self.grid_layout.addWidget(self.status_label, 0, 0)  
-        self.grid_layout.setColumnStretch(1, 1)  
-        self.grid_layout.setColumnStretch(2, 1)
-        self.grid_layout.addWidget(self.progress_bar, 0, 2, 1, 2) 
+        self.grid_layout.setColumnStretch(1,1)
+        #self.add_button(self.grid_layout, " Chat History", QSize(27, 27), self.show_prompt_dialog, "icons/chat.png", 0,2)
+        self.add_button(self.grid_layout, " Edit System Prompts", QSize(26, 26), self.show_prompt_dialog, "icons/computer.png",0,3)
+        self.add_button(self.grid_layout, " Settings", QSize(23, 23), self.show_settings_dialog, "icons/settings.png",0,4)
         
         # --- Second Row: Expanding Widget Placeholder ---
         self.custom_widget = QLabel("Placeholder Widget")  
@@ -770,13 +701,13 @@ class GridWidget(QWidget):
         self.grid_layout.addLayout(button_layout, 2, 0, 1, 5)  
         
         # Page System
-        self.project_widget = ProjectSetup(parent=self)
-        self.project_widget.hide()
+        #self.project_widget = ProjectSetup(parent=self)
+        #self.project_widget.hide()
         self.design_widget = DesignSpecification(parent=self, grandfather=parent)
         self.design_widget.hide()
         self.emulation_widget = Emulation(parent=self)
         self.emulation_widget.hide()
-        self.pages = [self.project_widget, self.design_widget,self.emulation_widget]
+        self.pages = [ self.design_widget,self.emulation_widget]
 
         self.current_page = 0
         self.update_buttons()
@@ -787,7 +718,25 @@ class GridWidget(QWidget):
         main_layout.addLayout(self.grid_layout)
         self.setLayout(main_layout)
         
-
+    def add_button(self, layout, tool_tip_text, icon_size , function, icon_dir, row, col):
+        """Helper function to add a menu button"""
+        button = QPushButton()
+        button.setToolTip(tool_tip_text)
+        button.setText(tool_tip_text)
+        button.setIcon(QIcon(icon_dir)) 
+        button.setIconSize(icon_size) 
+        button.setStyleSheet(grid_btn_style)
+        button.clicked.connect(function)
+        layout.addWidget(button, row, col)
+        
+    def show_prompt_dialog(self):
+        dialog = EditPrompts(self)
+        dialog.exec_()
+    
+    def show_settings_dialog(self):
+        dialog = LLMSettings(self)
+        dialog.exec_()  
+        
     def set_custom_widget(self, new_widget):
         """Replace the second-row widget dynamically while ensuring proper deletion."""
         if self.custom_widget is not None:  
@@ -817,11 +766,16 @@ class GridWidget(QWidget):
         self.prev_button.setEnabled(self.current_page > 0)
         self.next_button.setEnabled(self.current_page < len(self.pages) - 1)
 
-    def update_style(self, value):
-        """Update the font color based on progress value."""
-        if value >= 50:
-            self.progress_bar.setStyleSheet(bar_style_after)  # Change font color
-        else:
-            self.progress_bar.setStyleSheet(bar_style_before)  # Default color
 
-    #def stop_current_task(self):
+
+
+
+
+
+
+
+
+
+		 
+			  
+	 

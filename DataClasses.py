@@ -12,7 +12,7 @@ class Project:
     simulation_tool: str
     feedback_cycles: int
     hdl: str
-    editors: str
+    user_id: int
     
 
 @dataclass
@@ -24,4 +24,11 @@ class User:
     password: str
     rating: float
     
+
+
+
+
+
+
+
 

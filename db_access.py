@@ -1,9 +1,7 @@
 import hashlib
-from os import name
 import sqlite3
 from threading import Lock
 
-from config import DB_NAME
 from DataClasses import *
 
 class db_access:
@@ -21,7 +19,8 @@ class db_access:
     def __init__(self):
         """Initialize the database connection and cursor."""
         if not hasattr(self, "_initialized"):  # To ensure __init__ only runs once
-            self.connection = sqlite3.connect(DB_NAME, check_same_thread=False)
+            import config 
+            self.connection = sqlite3.connect(config.DB_NAME, check_same_thread=False)
             self.connection.row_factory = sqlite3.Row  # Optional: makes query results dict-like
             self.cursor = self.connection.cursor()
             self._initialized = True
@@ -156,19 +155,9 @@ class db_access:
         query = """
             INSERT INTO projects (
                 project_name, project_directory, no_api_calls, top_module_name, testbench_name,
-                board, eda_output_format, simulation_tool, feedback_cycles, hdl, editors
+                board, eda_output_format, simulation_tool, feedback_cycles, hdl, user_id
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(project_name) DO UPDATE SET
-                project_directory = excluded.project_directory,
-                no_api_calls = excluded.no_api_calls,
-                top_module_name = excluded.top_module_name,
-                testbench_name = excluded.testbench_name,
-                board = excluded.board,
-                eda_output_format = excluded.eda_output_format,
-                simulation_tool = excluded.simulation_tool,
-                feedback_cycles = excluded.feedback_cycles,
-                hdl = excluded.hdl,
-                editors = excluded.editors
+            ON CONFLICT(project_name) DO NOTHING;
         """
         params = (
             project.project_name,
@@ -181,48 +170,151 @@ class db_access:
             project.simulation_tool,
             project.feedback_cycles,
             project.hdl,
-            project.editors
+            project.user_id
         )
+        return self.execute_command(query, params)
+    
+    def update_api_calls(self, project_name, api_calls):
+        query = " UPDATE projects SET no_api_calls = ? WHERE project_name = ?; "
+        params = (api_calls, project_name)
         return self.execute_command(query, params)
     
     def get_project_by_name(self, project_name):
         query = "SELECT * FROM projects WHERE project_name = ?"
         results = self.execute_query(query, (project_name,))
-        return results[0] if results else None
-
-
-
-
-
-
-'''if __name__ == "__main__":
-    db_obj = db_access()
-    save_or_update_user
-    new_proj = Project(
-        project_name="my_project",
-        project_directory="/path/to/project",
-        no_api_calls=3,
-        top_module_name="top_module",
-        testbench_name="tb_top",
-        row_id=101,
-        board="DE10-Nano",
-        eda_output_format="VCD",
-        simulation_tool="ModelSim",
-        feedback_cycles=2,
-        hdl="Verilog",
-        editors="VSCode"
-    )
+        if results:
+            row = list(results[0])
+            project = Project(
+                project_name=row[0],
+                project_directory=row[1],
+                no_api_calls=row[2],
+                top_module_name=row[3],
+                testbench_name=row[4],
+                board=row[5],
+                eda_output_format=row[6],
+                simulation_tool=row[7],
+                feedback_cycles=row[8],
+                hdl=row[9],
+                user_id=row[10]
+            )
+            return project
+        return None
     
-    success = db_obj.insert_project(new_proj)
-    print(success)
+    def get_project_by_uid(self, user_id):
+        query = "SELECT project_name, project_directory, no_api_calls, top_module_name, testbench_name, board, eda_output_format, simulation_tool, feedback_cycles, hdl  FROM projects WHERE user_id = ?"
+        result = self.execute_query(query, (user_id,))
+        return result
     
-    project = db_obj.get_project_by_name("my_project")
-    if project:
-        print(f"Project found: {project['project_name']}")
-    else:
-        print("Project not found.")
+    def get_default_prompt_by_id(self, prompt_id):
+        query = "SELECT d_prompt_id, d_prompt_name, d_prompt FROM default_prompts WHERE d_prompt_id = ?"
+        result = self.execute_query(query, (prompt_id,))
+        if result:
+            result=list(result[0])
+            return {
+                "id": result[0],
+                "name": result[1],
+                "prompt": result[2]
+            }
         
-'''
+    def get_customized_prompts(self, user_id):
+        query = "SELECT prompt_id, prompt_name, prompt FROM prompts WHERE user_id = ?;"
+        result = self.execute_query(query, (user_id,))
+        
+        customized_prompts = {}
+        for row in result:
+            customized_prompts[row[1]] = row[2]
+            
+        if customized_prompts:
+            return customized_prompts
+        return False
+    
+    def save_customized_prompts(self, current_prompts, user_id):
+        params = None
+        query="""
+INSERT INTO prompts (prompt_id, user_id, prompt_name, prompt)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(user_id, prompt_id)
+DO UPDATE SET
+  prompt = excluded.prompt;
+            """
 
-db_obj = db_access()
-db_obj.save_or_update_user((221133,'test', 'test', 4, 'test', 4.3))
+        if current_prompts:
+            for prompt_name, prompt in current_prompts.items():
+                # insert/update
+                if prompt_name == 'top_prompt':
+                    params=(101, user_id, prompt_name, prompt,)
+                    self.execute_command(query, params)
+                elif prompt_name == 'driver_prompt':
+                    params=(102, user_id, prompt_name, prompt,)
+                    self.execute_command(query, params)
+                elif prompt_name == 'design_prompt':
+                    params=(103, user_id, prompt_name, prompt,)
+                    self.execute_command(query, params)
+                elif prompt_name == 'validation_prompt':
+                    params=(104, user_id, prompt_name, prompt,)
+                    self.execute_command(query, params)
+                elif prompt_name == 'process_specs_prompt':
+                    params=(105, user_id, prompt_name, prompt,)
+                    self.execute_command(query, params)
+                
+    def delete_customized_prompts(self, user_id):
+        # Define the query to delete the records
+        query = """
+        DELETE FROM prompts
+        WHERE user_id = ?;
+        """
+        # Execute the query with the provided user_id as the parameter
+        return self.execute_command(query, (user_id,))
+    
+    def delete_project(self, project_name):
+        # Define the query to delete the records
+        query = """DELETE FROM projects WHERE project_name = ?; """
+        # Execute the query with the provided user_id as the parameter
+        return self.execute_command(query, (project_name,))
+
+    def get_project_directory(self, project_name):
+        # Define the query to delete the records
+        query = """SELECT project_directory FROM projects WHERE project_name = ?; """
+        # Execute the query with the provided user_id as the parameter
+        result = self.execute_query(query, (project_name,))
+        if result:
+            return result[0][0]
+
+    
+    
+if __name__ == "__main__":
+    db = db_access()
+    '''project = Project( project_name="test_project",
+                       project_directory="/path/to/project",
+                       no_api_calls=0,
+                       top_module_name="top_module",
+                       testbench_name="testbench",
+                       board="DE1-SoC Board",
+                       eda_output_format="SYSTEMVERILOG HDL",
+                       simulation_tool="Questa Intel FPGA (SystemVerilog)",
+                       feedback_cycles=5,
+                       hdl="verilog",
+                       user_id=1)
+    db.insert_project(project)
+
+    for row in db.execute_query("Select * from projects;"):
+        print(list(row))'''
+        
+    print('______________________________')
+    print(db.get_default_prompt_by_id(101)['id'])
+    print(db.get_default_prompt_by_id(101)['name'])
+    print(db.get_default_prompt_by_id(101)['prompt'])
+    print('______________________________')
+    print(db.get_default_prompt_by_id(102)['id'])
+    print(db.get_default_prompt_by_id(103)['name'])
+    print(db.get_default_prompt_by_id(103)['prompt'])
+    print('______________________________')
+    print(db.get_default_prompt_by_id(104)['id'])
+    print(db.get_default_prompt_by_id(104)['name'])
+    print(db.get_default_prompt_by_id(104)['prompt'])
+    print('______________________________')
+    print(db.get_default_prompt_by_id(102)['id'])
+    print(db.get_default_prompt_by_id(102)['name'])
+    print(db.get_default_prompt_by_id(102)['prompt'])
+    
+        

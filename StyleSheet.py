@@ -2,8 +2,18 @@ border_radius = 6
 font_family = "Ubuntu"
 body_bg = 'white' #"#F5F9FF"
 font_size = '16px'
-main_blue = '#007BFF'
-color = "#565656"
+main_blue = '#006D5B'
+
+
+# Green button theme
+green        = '#2f8a5e'   # main
+green_hover  = '#3fae76'   # brighter on hover
+green_click  = '#25694a'   # darker on click
+
+# Red button theme
+red          = '#992222'   # main
+red_hover    = '#b33434'   # brighter on hover
+red_click    = '#731818'   # darker on click
 
 # Login styles
 login_style_sheet = """
@@ -22,10 +32,10 @@ login_style_sheet = """
                 border-radius: 5px;
             }
             QLineEdit:focus {
-                border-color: #0078D7;
+                border-color: #006D5B;
             }
             QPushButton {
-                background-color: #4169E1;
+                background-color: #006D5B;
                 color: white;
                 font-size: 18px;
                 border-radius: 5px;
@@ -33,14 +43,14 @@ login_style_sheet = """
                 height: 40px;
             }
             QPushButton:hover {
-                background-color: #0056A3;
+                background-color: #046152;
             }
         """
         
 # Message box style
-msg_box_style = """
-            QPushButton {
-                background-color: #4169E1;
+msg_box_style = f"""
+            QPushButton {{
+                background-color: {main_blue};
                 color: white;
                 font-size: 18px;
                 border-radius: 5px;
@@ -48,18 +58,18 @@ msg_box_style = """
                 height: 20px;
                 width: 30px;
                 border: none;
-            }
+            }}
             """
 
 # Menu styles
-menu_bg_color = '#E6F0FF'#'#2C3440'
-menu_btn_hover = '#cfe2ff'
-menu_btn_click = '#c2d9fc'
-menu_border = f'border : 1px solid #d4e4fc;'
+menu_bg_color = '#FAFAFA'#'#e9edef'#'#E6F0FF'#'#2C3440'
+menu_btn_hover = '#b8e3db'
+menu_btn_click = '#a6d7ce'
+menu_border = f'border : 1px solid #c3c7ca;'
 menu_btn_style = f"""
             QPushButton {{
                 background-color: transparent;
-                color: white;
+                color: #4c535e;
                 font-size: 16px;
                 padding: 10px;
                 border: none;
@@ -71,68 +81,74 @@ menu_btn_style = f"""
             QPushButton:pressed {{ 
                 background-color: {menu_btn_click};  /* Even darker blue when pressed */
             }}
+            QToolTip {{
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #cccccc;
+                padding: 6px;
+                border-radius: 4px;
+                font-family: 'Ubuntu';
+                font-size: 16px;
+            }}
         """
 
-# Upper menus
-upper_menus_style = f"""
+
+
+grid_btn_style = f"""
             QPushButton {{
-                border: none;
-                color: black;
-                font-size: 18px;
-                padding: 5px;
-                background-color: {'white'}; 
-                font-family:{font_family};
-                
+            color: black;
+            font-size: {font_size};
+            padding: 10px;
+            border-radius: {border_radius};
             }}
             QPushButton:hover {{
-                color: green;
+            background-color: #F8F8F8;
             }}
-        """
+            
+"""
 # Home styles
-card_bg = '#E6F7F9'
+load_project_style = f"""
+QDialog {{
+                background-color: #f0f0f0;
+                font-family: '{font_family}';
+                font-size: 13px;
+            }}
+            QLabel {{
+                font-weight: bold;
+                margin-bottom: 4px;
+                color: #333;
+            }}
+            QLineEdit {{
+                padding: 6px;
+                border: 1px solid #aaa;
+                border-radius: 4px;
+                font-size: 14px;
+            }}
+            QPushButton {{
+                background-color: #4CAF50;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+            }}
+            QPushButton:hover {{
+                background-color: #45a049;
+            }}
+"""
 
 
 # Grid styles
-panel_bg_color = '#F9F9F9'#'#F4F4F4'
+panel_bg_color = '#FAFAFA'#'#F4F4F4'
+outer_panel_border = 'border : 1px solid #c3c7ca;'
 panel_border = 'border : 1px solid #E4E5E8;'
 
-bar_bg = '#4169E1'
-bar_bg_empty = '#FAFAFA'
-bar_border = f'border : 1px solid #4169E1;'
-bar_style_before = f"""
-            QProgressBar {{
-                border-radius: 6px;
-                background-color: {bar_bg_empty};
-                height: 16px;
-                color: #222222;
-                text-align: center;
-                {bar_border}
-            }}
+status_style = "font-family: 'Segoe UI' !important; color: black; padding-right: 10px;font-weight:500;"
 
-            QProgressBar::chunk {{
-                background-color: {bar_bg};
-                border-radius: 5px;
-            }}
-        """
-bar_style_after = f"""
-            QProgressBar {{
-                border-radius: 6px;
-                background-color: {bar_bg_empty};
-                height: 16px;
-                color: white;
-                text-align: center;
-                {bar_border}
-            }}
-
-            QProgressBar::chunk {{
-                background-color: {bar_bg};
-                border-radius: 5px;
-            }}
-        """
-status_style = "color: black; padding-right: 10px;"
-
-button_bg = '#6A89A7'
-btn_font_color = '#003366'
+button_bg = main_blue #'#003366'
+button_hover = '#005245'
+button_click = '#003e36'
+btn_font_color = '#FFFEF2'
 button_style = f"""
             QPushButton {{
                 background-color: {button_bg};
@@ -143,14 +159,14 @@ button_style = f"""
                 height: 30px;
             }}
             QPushButton:hover {{
-                background-color: {menu_btn_hover};
+                background-color: {button_hover};
             }}
             QPushButton:pressed {{
-                background-color: {menu_btn_click};
+                background-color: {button_click};
             }}
         """
 input_style = f"""
-            QLineEdit{{
+            QLineEdit, QSpinBox{{
                 font-family: 'Ubuntu';
                 font-size: 16px;
                 padding: 6px;
@@ -158,6 +174,17 @@ input_style = f"""
                 border-radius: 4px;
                 background-color: white;
                 height : 30px;
+            }}
+            
+            QSpinBox::up-button, QSpinBox::down-button {{
+                width: 25px;
+                height: 20px;
+                padding: 0px;
+            }}
+
+            QSpinBox::up-arrow, QSpinBox::down-arrow {{
+                width: 8px;
+                height: 8px;
             }}
         """
 combobox_style = f"""
@@ -188,17 +215,6 @@ combobox_style = f"""
                 margin: 2px;
             }}
 """
-spinbox_style = """
-    QSpinBox {
-        font-family: 'Ubuntu';
-        font-size: 16px;
-        padding: 6px;
-        border: 1px solid #00786F;
-        border-radius: 4px;
-        background-color: white;
-        height: 30px;
-    }    
-"""
 label_style = f"""
             QLabel {{
                 font-size: 16px; 
@@ -216,11 +232,35 @@ spec_input_style = f"""
                 background-color: white;
                 height : 30px;
             }}
+            QScrollBar:vertical, QScrollBar:horizontal {{
+        background: transparent;
+        border: none;
+        width: 8px;
+        height: 8px;
+    }}
+
+    QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
+        background: #cccccc;
+        border-radius: 4px;
+        min-height: 20px;
+        min-width: 20px;
+    }}
+
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+        height: 0;
+        width: 0;
+    }}
+
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+    QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+        background: none;
+    }}
         """
-code_editor_bg = '#e4ebf0'
+code_editor_bg = '#fcfdff'
 code_editor_border = 'border: 1px solid #D2D3DB;'
 code_editor_font_color = 'black'
-code_editor_style = f"""
+'''code_editor_style = f"""
             QPlainTextEdit {{
                 background-color: {code_editor_bg};
                 font-family: 'Fira Code', 'Courier New', monospace;
@@ -229,14 +269,486 @@ code_editor_style = f"""
                 color: {code_editor_font_color};
                 padding: 12px;
             }}
+        """'''
+        
+code_editor_style = f"""
+QPlainTextEdit {{
+    background-color: #2a2d2e;  /* Lighter than #1e1e1e */
+    color: #dcdcdc;
+    font-family: Consolas, Courier New, monospace;
+    border: 1px solid #cccccc33;  /* subtle light gray border */
+    border-radius: 8px;
+    padding: 6px;
+}}
+QScrollBar:vertical, QScrollBar:horizontal {{
+    background: transparent;
+    border: none;
+    width: 8px;
+    height: 8px;
+}}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
+    background: #cccccc;
+    border-radius: 4px;
+    min-height: 20px;
+    min-width: 20px;
+}}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+    height: 0;
+    width: 0;
+}}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    background: none;
+}}
+"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Upper menus
+upper_menus_style = f"""
+            QPushButton {{
+                border: none;
+                color: black;
+                font-size: 16px;
+                padding: 5px;
+                background-color: {'white'}; 
+                font-family:{font_family};
+                
+            }}
+            QPushButton:hover {{
+                color: #003366;
+            }}
+        """
+
+prompt_menu_bg = "#F6F6F6"
+home_menu_bg = "#F8F8F8"
+button_hover = "#0c4a87"
+home_menu_style = f"""
+            QPushButton {{
+                border: none;
+                color: black;
+                font-size: 16px;
+                padding: 5px;
+                font-family:{font_family};
+                
+            }}
+            QPushButton:hover {{
+                color: {button_hover};
+            }}
+        """
+
+admin_menu_style = f"""
+            QPushButton {{
+                border: none;
+                color: black;
+                font-size: 16px;
+                padding: 5px;
+                font-family:{font_family};
+                
+            }}
+            QPushButton:hover {{
+                color: #003366;
+            }}
+        """
+
+
+
+# Admin styles
+search_button_style = f"""
+            QPushButton {{
+                background-color: {panel_bg_color};
+                color: {main_blue};
+                font-size: 16px;
+                border-radius: {border_radius}px;
+                {panel_border}
+                padding: 6px 12px;
+                height: 30px;
+            }}
+            QPushButton:hover {{
+                background-color: {panel_bg_color};
+            }}
+"""
+
+search_input_style = f"""
+            QLineEdit {{
+                font-size: 16px;
+                padding: 6px 12px;
+                height: 30px;
+            }}
+"""
+
+
+user_dialog_style  =f"""
+    QWidget {{
+        font-family: 'Ubuntu';
+        font-size: 15px;
+    }}
+
+    {input_style}
+
+    {label_style}
+
+    QDialog {{
+        background-color: #ffffff;
+    }}
+
+    QTableWidget {{
+        border: 1px solid #ccc;
+        gridline-color: #eee;
+        selection-background-color: #87cefa;
+        selection-color: #000;
+    }}
+
+    QHeaderView::section {{
+        background-color: #f0f0f0;
+        padding: 6px;
+        border: 1px solid #ccc;
+        font-weight: bold;
+    }}
+"""
+
+delete_dialog_style = f"""
+    QWidget {{
+        background-color: #ffffff;
+        font-family: 'Ubuntu';
+        font-size: {font_size};
+    }}
+
+    {label_style}
+
+    {input_style}
+
+    QPushButton {{
+        background-color: {red};
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        height: 20px;
+    }}
+
+    QPushButton:hover {{
+        background-color: {red_hover};
+    }}
+
+    QPushButton:pressed {{
+        background-color: {red_click};
+    }}
+"""
+
+
+table_border = '#ededed'
+table_bg = '#fbfbfb'
+table_font_family = 'Segoe UI'  # Or 'Segoe UI', 'Roboto'
+
+
+home_table_style = """
+QTableWidget {
+    background-color: #fbfbfb;  /* Full table background */
+    border: 1px solid #e6e8ea;
+    border-radius: 12px;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+    font-size: 15px;
+    color: #333;
+    gridline-color: #f0f1f2;
+}
+
+QTableWidget::viewport {
+    background-color: #fbfbfb;
+    border-radius: 12px;
+}
+
+QHeaderView::section {
+    background-color: #fbfbfb;
+    color: #555;
+    padding: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    border: none;
+    border-bottom: 1px solid #e6e8ea;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+}
+
+QTableWidget::item {
+    padding: 8px;
+    border: none;
+    font-size: 20px;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+    background-color: transparent;
+    color: #333;
+}
+
+QTableView::item {
+    font-size: 20px;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+    color: #333;
+}
+
+QTableWidget::item:selected {
+    background-color: #a6d7ce; 
+    color: #1a1a1a;
+    border-radius: 8px;
+}
+
+QTableWidget::item:hover {
+    background-color: #f6f6f6;
+}
+
+QScrollBar:vertical, QScrollBar:horizontal {
+    background: transparent;
+    border: none;
+    width: 6px;
+    height: 6px;
+}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: #d0d2d3;
+    border-radius: 3px;
+    min-height: 20px;
+    min-width: 20px;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    height: 0;
+    width: 0;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}
+"""
+
+
+
+project_dia_style= dialog_style = """
+QDialog {
+    background-color: #f9f9f9;
+    border: 1px solid #dcdcdc;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+QLabel {
+    font-size: 13px;
+    color: #333;
+    padding: 2px;
+}
+
+QLineEdit {
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 13px;
+}
+
+QLineEdit:focus {
+    border: 1px solid #5cabff;
+}
+
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 13px;
+}
+
+QComboBox:focus {
+    border: 1px solid #5cabff;
+}
+
+QPushButton {
+    background-color: #5cabff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+QPushButton:hover {
+    background-color: #4791db;
+}
+
+QPushButton:pressed {
+    background-color: #3b7ec6;
+}
+
+QSpinBox {
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 13px;
+}
+
+QSpinBox:focus {
+    border: 1px solid #5cabff;
+}
+"""
+
+
+
+save_button_style  = f"""
+            QPushButton {{
+                background-color: {main_blue};
+                color: {btn_font_color};
+                border-radius: 5px;
+                padding: 6px 12px;
+                font-size: 16px;
+                height: 30px;
+            }}
+            QPushButton:hover {{
+                background-color: {green_hover};
+            }}
+            QPushButton:pressed {{
+                background-color: {green_click};
+            }}
+        """
+cancel_button_style = f"""
+    QPushButton {{
+        background-color: {red};
+        color: {btn_font_color};
+        border-radius: 5px;
+        padding: 6px 12px;
+        font-size: 16px;
+        height: 30px;
+    }}
+    QPushButton:hover {{
+        background-color: {red_hover};
+    }}
+    QPushButton:pressed {{
+        background-color: {red_click};
+    }}
+"""
+restore_button_style = f"""
+            QPushButton {{
+                background-color: {red};
+                color: {btn_font_color};
+                border-radius: 5px;
+                padding: 6px 12px;
+                font-size: 16px;
+                height: 30px;
+            }}
+            QPushButton:hover {{
+                background-color: {red_hover};
+            }}
+            QPushButton:pressed {{
+                background-color: {red_click};
+            }}
         """
 
 
 
 
+  
+  
+
+
+
+user_table_style = """
+    QTableWidget {
+        font-family: 'Ubuntu';
+        background-color: #ffffff;
+        gridline-color: #dddddd;
+        font-size: 14px;
+        border: 1px solid #cccccc;
+    }
+
+    QHeaderView::section {
+        background-color: #fafafa;
+        color: #333333;
+        font-weight: 400;
+        padding: 6px;
+        border: 1px solid #dddddd;
+    }
+
+    QTableWidget::item {
+        padding: 6px;
+        border: none;
+    }
+
+    QTableWidget::item:selected {
+        background-color: #a6d7ce;
+        color: #000;
+    }
+
+    QTableCornerButton::section {
+        background-color: #f0f0f0;
+        border: 1px solid #dddddd;
+    }
+"""
 
 
 
 
 
+log_output_style = """
+QTextEdit {
+    background-color: #1e1e1e;
+    color: #dcdcdc;
+    border: 1px solid #555;
+    padding: 6px;
+    font-family: Consolas, monospace;
+    font-size: 14px;      
+    line-height: 1.6em;         
+}
+QScrollBar:vertical, QScrollBar:horizontal {{
+    background: transparent;
+    border: none;
+    width: 8px;
+    height: 8px;
+}}
 
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
+    background: #cccccc;
+    border-radius: 4px;
+    min-height: 20px;
+    min-width: 20px;
+}}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+    height: 0;
+    width: 0;
+}}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    background: none;
+}}
+"""
+
+code_editor_btn = """
+QPushButton {
+            background-color: #2d2d30;
+            color: white;
+            border: 1px solid #3e3e42;
+            border-radius: 5px;
+            padding: 5px 10px;
+        }
+        QPushButton:hover {
+            background-color: #3e3e42;
+        }
+        QPushButton:pressed {
+            background-color: #505053;
+        }
+"""
